@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Solace – Empathy-first social platform</title>
+  <!-- Tailwind CSS + Google Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+  <!-- React & ReactDOM -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { background: #FAF7F2; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #EDE5DE; border-radius: 8px; }
+    ::-webkit-scrollbar-thumb { background: #C4778A; border-radius: 8px; }
+    .transition-all { transition: all 0.2s ease; }
+  </style>
+</head>
+<body class="antialiased" style="font-family: 'Inter', sans-serif;">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // ========== FIREBASE CONFIG (REPLACE WITH YOUR OWN) ==========
+    // Go to Firebase Console -> Project Settings -> General -> Your apps -> Firebase SDK snippet (config)
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const storage = firebase.storage();
+
+    // ---------- DESIGN SYSTEM ----------
+    const COLORS = {
+      bg: "#FAF7F2",
+      bgCard: "#FFFFFF",
+      bgSidebar: "#2D1F1A",
+      primary: "#C4778A",
+      primaryLight: "#F2E0E5",
+      sage: "#7A9E7E",
+      sageLight: "#E4EFE5",
+      amber: "#D4A96A",
+      amberLight: "#F5ECD8",
+      blue: "#6A8FBF",
+      blueLight: "#DDE8F5",
+      purple: "#9B7BC4",
+      purpleLight: "#EDE5F5",
+      text: "#2D1B1E",
+      textMuted: "#8A7070",
+      border: "#EDE5DE",
+    };
+
+    // Emotion tags
+    const EMOTION_TAGS = [
+      { id: "anxiety", label: "Anxiety", color: COLORS.purple, bg: COLORS.purpleLight, emoji: "🌀" },
+      { id: "grief", label: "Grief", color: COLORS.blue, bg: COLORS.blueLight, emoji: "🌧️" },
+      { id: "burnout", label: "Burnout", color: COLORS.amber, bg: COLORS.amberLight, emoji: "🍂" },
+      { id: "win", label: "I Won Today", color: COLORS.sage, bg: COLORS.sageLight, emoji: "✨" },
+      { id: "loneliness", label: "Loneliness", color: COLORS.primary, bg: COLORS.primaryLight, emoji: "🌙" },
+      { id: "hope", label: "Hope", color: "#E08B4A", bg: "#FDF0E4", emoji: "🌅" },
+      { id: "stress", label: "Stress", color: "#B05E6F", bg: "#FAE5EA", emoji: "⚡" },
+      { id: "gratitude", label: "Gratitude", color: "#4A9E7E", bg: "#D8F0E8", emoji: "🌿" },
+    ];
+
+    // Empathy reactions
+    const EMPATHY_REACTIONS = [
+      { id: "felt", label: "I felt this", emoji: "🤝" },
+      { id: "strength", label: "Sending strength", emoji: "💪" },
+      { id: "notalone", label: "You're not alone", emoji: "🫂" },
+      { id: "proud", label: "So proud of you", emoji: "🌟" },
+    ];
+
+    // Community rooms
+    const ROOMS = [
+      { id: "anxiety", name: "Anxiety Corner", emoji: "🌀", members: 1240, color: COLORS.purple, description: "Share worries, learn grounding techniques." },
+      { id: "grief", name: "Grief Support", emoji: "🌧️", members: 876, color: COLORS.blue, description: "Honor loss, find companionship." },
+      { id: "wins", name: "Celebrate Wins", emoji: "✨", members: 2103, color: COLORS.sage, description: "No win is too small." },
+      { id: "burnout", name: "Burnout Recovery", emoji: "🍂", members: 654, color: COLORS.amber, description: "Rest, recover, share strategies." },
+    ];
+
+    // Mock initial posts
+    const INITIAL_POSTS = [
+      { id: 1, anonymous: true, author: "Anonymous", avatar: "A", tag: EMOTION_TAGS[0], time: "2h ago", content: "I've been waking up at 3am every night with my heart racing. I don't even know what I'm anxious about anymore. Has anyone found something that actually helps?", reactions: { felt: 14, strength: 8, notalone: 22, proud: 0 }, comments: 6, userReacted: null },
+      { id: 2, anonymous: false, author: "Nadia R.", avatar: "N", tag: EMOTION_TAGS[3], time: "4h ago", content: "After 8 months of rejections, I finally got the job offer. I cried for 20 minutes. To anyone still struggling – it does get better. 🌾", reactions: { felt: 5, strength: 31, notalone: 12, proud: 47 }, comments: 19, userReacted: null },
+      { id: 3, anonymous: true, author: "Anonymous", avatar: "A", tag: EMOTION_TAGS[1], time: "6h ago", content: "It's been 6 months since I lost my dad. People say it gets easier but some days the weight just gets heavier. I miss him so much.", reactions: { felt: 38, strength: 25, notalone: 41, proud: 0 }, comments: 14, userReacted: null },
+      { id: 4, anonymous: false, author: "Tariq M.", avatar: "T", tag: EMOTION_TAGS[2], time: "1d ago", content: "Third year into my startup and I've hit a wall. I'm proud but feel empty inside. When did 'doing what I love' become a prison?", reactions: { felt: 27, strength: 19, notalone: 33, proud: 2 }, comments: 11, userReacted: null },
+    ];
+
+    // Mood data
+    const MOOD_DATA = [
+      { day: "Mon", score: 4 }, { day: "Tue", score: 3 }, { day: "Wed", score: 2 },
+      { day: "Thu", score: 5 }, { day: "Fri", score: 4 }, { day: "Sat", score: 6 }, { day: "Sun", score: 7 },
+    ];
+
+    // Helper: upload profile picture
+    const uploadProfilePicture = async (file, user) => {
+      if (!user) return;
+      const storageRef = storage.ref(`profile_pics/${user.uid}`);
+      await storageRef.put(file);
+      const downloadURL = await storageRef.getDownloadURL();
+      await user.updateProfile({ photoURL: downloadURL });
+      return downloadURL;
+    };
+
+    // ---------- Helper Components ----------
+    const MoodBar = ({ score, day }) => {
+      const height = (score / 7) * 60;
+      return (
+        <div className="flex flex-col items-center gap-1">
+          <div className="h-[60px] flex items-end">
+            <div className="w-7 rounded-t-md transition-all" style={{ height: `${height}px`, background: score >= 5 ? COLORS.sage : score >= 3 ? COLORS.amber : COLORS.primary }}></div>
+          </div>
+          <span className="text-xs text-stone-500">{day}</span>
+        </div>
+      );
+    };
+
+    // Post Card component
+    const PostCard = ({ post, onReact, onAISupport }) => {
+      const totalReactions = Object.values(post.reactions).reduce((a,b)=>a+b,0);
+      return (
+        <div className="bg-white rounded-2xl p-5 mb-4 border border-stone-200 shadow-sm hover:shadow-md transition-all">
+          <div className="flex justify-between items-start mb-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold ${post.anonymous ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-700'}`}>{post.avatar}</div>
+              <div>
+                <div className="text-sm font-medium text-stone-800">{post.author}</div>
+                <div className="text-xs text-stone-400">{post.time}</div>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full" style={{ background: post.tag.bg, color: post.tag.color }}>{post.tag.emoji} {post.tag.label}</span>
+          </div>
+          <p className="text-stone-700 leading-relaxed mb-4 font-serif">{post.content}</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {EMPATHY_REACTIONS.map(r => (
+              <button key={r.id} onClick={() => onReact(post.id, r.id)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-all ${post.userReacted === r.id ? 'border-rose-300 bg-rose-50 text-rose-700 font-medium' : 'border-stone-200 text-stone-500 hover:bg-stone-50'}`}>
+                {r.emoji} {r.label} {post.reactions[r.id] > 0 && <span className="font-bold ml-0.5">{post.reactions[r.id]}</span>}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-between items-center pt-3 border-t border-stone-100">
+            <span className="text-xs text-stone-400">{totalReactions > 0 && `${totalReactions} people supported · `}{post.comments} reflections</span>
+            <button onClick={() => onAISupport(post)} className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-full border border-stone-200 text-stone-500 hover:bg-stone-50">🤖 AI Peer Support</button>
+          </div>
+        </div>
+      );
+    };
+
+    // ---------- Main App ----------
+    const SolacePlatform = () => {
+      const [user, setUser] = useState(null);
+      const [loadingAuth, setLoadingAuth] = useState(true);
+      const [view, setView] = useState("feed");
+      const [posts, setPosts] = useState(INITIAL_POSTS);
+      const [showCreate, setShowCreate] = useState(false);
+      const [newPost, setNewPost] = useState({ content: "", tag: null, anonymous: true });
+      const [activeRoom, setActiveRoom] = useState(null);
+      const [moodToday, setMoodToday] = useState(null);
+      const [journalEntry, setJournalEntry] = useState("");
+      const [aiSupport, setAiSupport] = useState({ open: false, post: null, response: "", loading: false });
+      const [sidebarOpen, setSidebarOpen] = useState(true);
+      const [savedJournal, setSavedJournal] = useState([]);
+      const [uploadingPic, setUploadingPic] = useState(false);
+
+      // Firebase Auth listener
+      useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+          setUser(firebaseUser);
+          setLoadingAuth(false);
+        });
+        return () => unsubscribe();
+      }, []);
+
+      // Sign in with Google
+      const signInWithGoogle = async () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        try {
+          await auth.signInWithPopup(provider);
+        } catch (error) {
+          console.error("Google sign-in error", error);
+          alert("Sign-in failed. Please try again.");
+        }
+      };
+
+      const signOut = async () => {
+        await auth.signOut();
+        setView("feed");
+      };
+
+      // Handle profile picture upload
+      const handleProfilePicUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !user) return;
+        setUploadingPic(true);
+        try {
+          const newUrl = await uploadProfilePicture(file, user);
+          setUser({ ...user, photoURL: newUrl });
+          alert("Profile picture updated!");
+        } catch (err) {
+          console.error(err);
+          alert("Upload failed. Check Firebase Storage rules.");
+        } finally {
+          setUploadingPic(false);
+        }
+      };
+
+      // Reaction handler
+      const handleReact = (postId, reactionId) => {
+        setPosts(prev => prev.map(p => {
+          if (p.id !== postId) return p;
+          const already = p.userReacted === reactionId;
+          const newReactions = { ...p.reactions };
+          if (already) newReactions[reactionId] = Math.max(0, newReactions[reactionId] - 1);
+          else {
+            newReactions[reactionId] = (newReactions[reactionId] || 0) + 1;
+            if (p.userReacted) newReactions[p.userReacted] = Math.max(0, newReactions[p.userReacted] - 1);
+          }
+          return { ...p, userReacted: already ? null : reactionId, reactions: newReactions };
+        }));
+      };
+
+      // AI Support (simulated)
+      const getAISupport = (post) => {
+        setAiSupport({ open: true, post, response: "", loading: true });
+        setTimeout(() => {
+          const mockResponses = [
+            "I hear how heavy this feels. You're not broken – you're human. Would you like to share more? 💙",
+            "That takes courage to name. So many here understand this feeling. What would feel most supportive for you?",
+            "Thank you for trusting us with this. You're not alone. Is there a tiny thing that brought you even a moment of ease today?",
+            "I'm sitting with you in this. It's okay to not have answers. What do you need most right now?"
+          ];
+          const random = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+          setAiSupport({ open: true, post, response: random, loading: false });
+        }, 800);
+      };
+
+      // Submit new post
+      const submitPost = () => {
+        if (!newPost.content.trim() || !newPost.tag) return;
+        const newId = Date.now();
+        let authorName = "Anonymous";
+        let authorAvatar = "A";
+        if (!newPost.anonymous && user) {
+          authorName = user.displayName || "You";
+          authorAvatar = user.displayName?.charAt(0) || "Y";
+        } else if (!newPost.anonymous && !user) {
+          authorName = "Guest";
+          authorAvatar = "G";
+        }
+        const post = {
+          id: newId,
+          anonymous: newPost.anonymous,
+          author: authorName,
+          avatar: authorAvatar,
+          tag: newPost.tag,
+          time: "Just now",
+          content: newPost.content,
+          reactions: { felt: 0, strength: 0, notalone: 0, proud: 0 },
+          comments: 0,
+          userReacted: null,
+        };
+        setPosts(prev => [post, ...prev]);
+        setNewPost({ content: "", tag: null, anonymous: true });
+        setShowCreate(false);
+      };
+
+      // Save journal entry
+      const saveJournal = () => {
+        if (!journalEntry.trim()) return;
+        const newEntry = { date: new Date().toLocaleDateString(), text: journalEntry, mood: moodToday };
+        setSavedJournal(prev => [newEntry, ...prev]);
+        setJournalEntry("");
+        alert("✨ Journal saved privately. Only you can see it.");
+      };
+
+      const postInRoom = () => {
+        if (!activeRoom) return;
+        alert(`✨ In "${activeRoom}" room: feature ready – posts would appear here.`);
+      };
+
+      const navItems = [
+        { id: "feed", label: "Home Feed", icon: "🏡" },
+        { id: "rooms", label: "Community Rooms", icon: "🏘️" },
+        { id: "journal", label: "My Journal", icon: "📓" },
+        { id: "profile", label: "Profile", icon: "👤" },
+      ];
+
+      if (loadingAuth) {
+        return <div className="flex items-center justify-center h-screen bg-[#FAF7F2]">Loading Solace...</div>;
+      }
+
+      return (
+        <div className="flex min-h-screen" style={{ background: COLORS.bg }}>
+          {/* ---------- SIDEBAR with User Info ---------- */}
+          <div className={`sticky top-0 h-screen bg-[#2D1F1A] transition-all duration-300 flex flex-col ${sidebarOpen ? 'w-64' : 'w-20'}`}>
+            <div className={`pt-7 pb-4 px-5 border-b border-white/10 ${!sidebarOpen && 'px-3'}`}>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-rose-400 rounded-lg flex items-center justify-center text-lg">🌿</div>
+                {sidebarOpen && <span className="text-white font-serif text-xl font-semibold tracking-wide">Solace</span>}
+              </div>
+              {sidebarOpen && <p className="text-white/40 text-xs mt-1.5">A safe space to feel & heal</p>}
+            </div>
+
+            {/* User profile area in sidebar */}
+            <div className={`p-4 border-b border-white/10 ${!sidebarOpen && 'px-2'}`}>
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <div className="relative group cursor-pointer" onClick={() => document.getElementById('sidebarProfilePicInput').click()}>
+                    <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'User'}&background=C4778A&color=fff`} className="w-10 h-10 rounded-full object-cover border-2 border-rose-300" />
+                    {uploadingPic && <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white text-xs">...</div>}
+                  </div>
+                  <input id="sidebarProfilePicInput" type="file" accept="image/*" className="hidden" onChange={handleProfilePicUpload} />
+                  {sidebarOpen && (
+                    <div className="flex-1 overflow-hidden">
+                      <div className="text-white text-sm font-medium truncate">{user.displayName || "User"}</div>
+                      <button onClick={signOut} className="text-xs text-rose-300 hover:text-rose-200 mt-0.5">Sign out</button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button onClick={signInWithGoogle} className="w-full bg-white/10 hover:bg-white/20 text-white text-sm py-2 rounded-lg flex items-center justify-center gap-2 transition">
+                  <img src="https://www.google.com/favicon.ico" className="w-4 h-4" /> Sign in with Google
+                </button>
+              )}
+            </div>
+
+            <nav className="flex-1 pt-2">
+              {navItems.map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => { setView(item.id); setActiveRoom(null); }}
+                  className="flex items-center gap-3 px-5 py-3 cursor-pointer transition-all"
+                  style={{
+                    borderLeftWidth: view === item.id ? '3px' : '0px',
+                    borderLeftColor: COLORS.primary,
+                    background: view === item.id ? 'rgba(196,119,138,0.2)' : 'transparent',
+                    color: view === item.id ? '#F5E0E6' : 'rgba(255,255,255,0.55)'
+                  }}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  {sidebarOpen && <span className="text-sm font-medium">{item.label}</span>}
+                </div>
+              ))}
+            </nav>
+            <div className="p-4 text-white/30 text-xs text-center">— empathy first —</div>
+          </div>
+
+          {/* ---------- MAIN CONTENT ---------- */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Topbar with user avatar */}
+            <div className="sticky top-0 z-10 bg-white border-b border-stone-200 px-5 py-3 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-stone-500 text-xl p-1 hover:bg-stone-100 rounded-md">☰</button>
+                <h2 className="font-serif font-semibold text-stone-800 text-lg">
+                  {view === "feed" && "Home Feed"}
+                  {view === "rooms" && "Community Rooms"}
+                  {view === "journal" && "My Journal"}
+                  {view === "profile" && "My Profile"}
+                </h2>
+              </div>
+              <div className="flex gap-3 items-center">
+                <div className="bg-rose-50 text-rose-600 text-xs font-semibold px-3 py-1.5 rounded-full">🌿 5‑day streak</div>
+                <button onClick={() => setShowCreate(true)} className="bg-rose-400 text-white px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm hover:bg-rose-500 transition">+ Share</button>
+                {user && (
+                  <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=C4778A&color=fff`} className="w-8 h-8 rounded-full object-cover border border-stone-200" />
+                )}
+              </div>
+            </div>
+
+            {/* Scrollable area */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6">
+              {/* FEED VIEW */}
+              {view === "feed" && (
+                <div className="max-w-2xl mx-auto">
+                  <div className="bg-gradient-to-r from-rose-50 to-amber-50 rounded-xl p-5 mb-6 border border-stone-200">
+                    <p className="italic font-serif text-stone-700">"You are allowed to be both a masterpiece and a work in progress simultaneously."</p>
+                    <p className="text-xs text-stone-500 mt-2">— No judgment, no likes. Just humanity.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-5">
+                    {EMOTION_TAGS.map(t => <span key={t.id} className="text-xs px-2 py-1 rounded-full cursor-pointer" style={{ background: t.bg, color: t.color }}>{t.emoji} {t.label}</span>)}
+                  </div>
+                  {posts.map(post => <PostCard key={post.id} post={post} onReact={handleReact} onAISupport={getAISupport} />)}
+                </div>
+              )}
+
+              {/* ROOMS VIEW (unchanged) */}
+              {view === "rooms" && (
+                <div className="max-w-3xl mx-auto">
+                  {!activeRoom ? (
+                    <>
+                      <h3 className="font-serif text-xl font-semibold mb-1">Find your people</h3>
+                      <p className="text-stone-500 text-sm mb-5">Join a room where others truly understand.</p>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {ROOMS.map(room => (
+                          <div key={room.id} onClick={() => setActiveRoom(room.id)} className="bg-white rounded-xl p-4 border-l-4 cursor-pointer hover:shadow-md transition" style={{ borderLeftColor: room.color }}>
+                            <div className="flex items-center gap-3">
+                              <span className="text-3xl">{room.emoji}</span>
+                              <div>
+                                <div className="font-semibold">{room.name}</div>
+                                <div className="text-xs text-stone-500">{room.members.toLocaleString()} members</div>
+                                <p className="text-xs text-stone-600 mt-1">{room.description}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <button onClick={() => setActiveRoom(null)} className="text-rose-500 text-sm mb-4 flex items-center gap-1">← Back to rooms</button>
+                      <div className="bg-white rounded-2xl p-5 border shadow-sm">
+                        <h3 className="font-serif text-xl">{ROOMS.find(r=>r.id===activeRoom)?.emoji} {ROOMS.find(r=>r.id===activeRoom)?.name}</h3>
+                        <p className="text-stone-500 text-sm mt-1">Share what's on your heart. Empathy only.</p>
+                        <textarea placeholder="Write your post for this room..." className="w-full mt-4 p-3 border border-stone-200 rounded-xl resize-none" rows="3"></textarea>
+                        <button onClick={postInRoom} className="mt-3 bg-rose-400 text-white px-5 py-2 rounded-full text-sm">Share in room</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* JOURNAL VIEW */}
+              {view === "journal" && (
+                <div className="max-w-xl mx-auto space-y-5">
+                  <div className="bg-white rounded-xl p-5 border">
+                    <h3 className="font-serif font-semibold mb-3">📊 Your mood this week</h3>
+                    <div className="flex justify-around items-end">
+                      {MOOD_DATA.map(d => <MoodBar key={d.day} score={d.score} day={d.day} />)}
+                    </div>
+                    <p className="text-center text-xs text-stone-400 mt-3">Only you see this. Private forever.</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-5 border">
+                    <h3 className="font-semibold">How are you feeling right now?</h3>
+                    <div className="flex gap-2 my-3">
+                      {[1,2,3,4,5,6,7].map(n => (
+                        <button key={n} onClick={() => setMoodToday(n)} className={`w-9 h-9 rounded-full border-2 transition ${moodToday === n ? 'border-rose-400 bg-rose-50 text-rose-600' : 'border-stone-200 text-stone-500'}`}>{n}</button>
+                      ))}
+                    </div>
+                    {moodToday && <p className="text-xs text-green-600">✓ Mood logged for today</p>}
+                  </div>
+                  <div className="bg-white rounded-xl p-5 border">
+                    <h3 className="font-serif font-semibold">Today's reflection</h3>
+                    <textarea value={journalEntry} onChange={e=>setJournalEntry(e.target.value)} className="w-full border rounded-lg p-3 mt-2 h-28 resize-none" placeholder="Write freely. This is for your eyes only..."></textarea>
+                    <div className="flex justify-between items-center mt-3">
+                      <span className="text-xs text-stone-400">🔒 Private & encrypted</span>
+                      <button onClick={saveJournal} className="bg-rose-400 text-white px-4 py-1.5 rounded-full text-sm">Save entry</button>
+                    </div>
+                  </div>
+                  {savedJournal.length > 0 && (
+                    <div className="bg-white rounded-xl p-4 border">
+                      <h4 className="font-medium text-sm mb-2">Recent entries</h4>
+                      {savedJournal.slice(0,2).map((entry,i)=>(
+                        <div key={i} className="border-b border-stone-100 py-2 text-sm text-stone-600"><span className="text-stone-400 text-xs">{entry.date}</span> – {entry.text.slice(0,80)}...</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* PROFILE VIEW with picture upload & user info */}
+              {view === "profile" && (
+                <div className="max-w-md mx-auto">
+                  <div className="bg-white rounded-2xl p-6 text-center border">
+                    <div className="relative inline-block cursor-pointer group" onClick={() => document.getElementById('profilePicInput').click()}>
+                      <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || 'Guest'}&background=C4778A&color=fff&size=80`} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-rose-300" />
+                      <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-xs">Change</div>
+                    </div>
+                    <input id="profilePicInput" type="file" accept="image/*" className="hidden" onChange={handleProfilePicUpload} />
+                    <h3 className="font-serif text-xl mt-3">{user?.displayName || "Guest User"}</h3>
+                    <p className="text-stone-500 text-sm">{user?.email || "Not signed in"}</p>
+                    {!user && <button onClick={signInWithGoogle} className="mt-3 bg-rose-400 text-white px-4 py-1.5 rounded-full text-sm">Sign in to save profile</button>}
+                    <div className="flex justify-center gap-6 mt-4">
+                      <div><div className="font-bold text-xl">{posts.filter(p=>!p.anonymous && p.author === user?.displayName).length}</div><div className="text-xs text-stone-400">Your posts</div></div>
+                      <div><div className="font-bold text-xl">12</div><div className="text-xs text-stone-400">Reactions given</div></div>
+                      <div><div className="font-bold text-xl">5d</div><div className="text-xs text-stone-400">Streak</div></div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-5 mt-4 border">
+                    <h4 className="font-medium mb-3">Privacy settings</h4>
+                    <div className="flex justify-between py-2 border-b"><span>Anonymous by default</span><div className="w-10 h-5 bg-rose-400 rounded-full relative"><div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full"></div></div></div>
+                    <p className="text-xs text-stone-400 mt-3">🔐 Your data stays private. No tracking.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CREATE POST MODAL (unchanged) */}
+          {showCreate && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={()=>setShowCreate(false)}>
+              <div className="bg-white rounded-2xl max-w-lg w-full p-6" onClick={e=>e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4"><h3 className="font-serif text-xl">Share what you feel</h3><button onClick={()=>setShowCreate(false)} className="text-2xl text-stone-400">×</button></div>
+                <div className="flex justify-between items-center bg-stone-50 p-3 rounded-xl mb-4"><span className="text-sm">Post anonymously</span><button className={`w-11 h-5 rounded-full transition ${newPost.anonymous ? 'bg-rose-400' : 'bg-stone-300'}`} onClick={()=>setNewPost(p=>({...p, anonymous:!p.anonymous}))}><div className={`w-4 h-4 bg-white rounded-full transition-transform ${newPost.anonymous ? 'translate-x-6' : 'translate-x-1'}`}></div></button></div>
+                <div className="mb-3"><p className="text-xs text-stone-500 mb-1">Emotion tag</p><div className="flex flex-wrap gap-2">{EMOTION_TAGS.map(t=><span key={t.id} onClick={()=>setNewPost(p=>({...p, tag:t}))} className={`text-xs px-2 py-1 rounded-full cursor-pointer border-2 ${newPost.tag?.id===t.id ? 'border-rose-400' : 'border-transparent'}`} style={{background:t.bg, color:t.color}}>{t.emoji} {t.label}</span>)}</div></div>
+                <textarea value={newPost.content} onChange={e=>setNewPost(p=>({...p, content:e.target.value}))} className="w-full border rounded-xl p-3 h-28 resize-none" placeholder="What's on your mind? This space is judgment‑free..."></textarea>
+                <div className="flex justify-end gap-3 mt-4"><button onClick={()=>setShowCreate(false)} className="px-4 py-2 rounded-full border">Cancel</button><button onClick={submitPost} className={`px-5 py-2 rounded-full text-white ${!newPost.content.trim() || !newPost.tag ? 'bg-rose-300' : 'bg-rose-500'}`}>🌿 Share</button></div>
+              </div>
+            </div>
+          )}
+
+          {/* AI SUPPORT MODAL */}
+          {aiSupport.open && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={()=>setAiSupport({...aiSupport, open:false})}>
+              <div className="bg-white rounded-2xl max-w-md w-full p-5" onClick={e=>e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-3"><h3 className="font-serif text-lg">🤍 AI Peer Support</h3><button onClick={()=>setAiSupport({...aiSupport, open:false})} className="text-xl text-stone-400">×</button></div>
+                <div className="bg-stone-50 p-3 rounded-lg text-sm italic mb-3">“{aiSupport.post?.content?.slice(0,100)}...”</div>
+                {aiSupport.loading ? <div className="py-6 text-center text-stone-500">🌿 Thinking with care...</div> : <div className="bg-rose-50 p-4 rounded-xl text-stone-700 leading-relaxed" style={{ borderLeft: `3px solid ${COLORS.primary}` }}>{aiSupport.response}</div>}
+                <p className="text-[11px] text-stone-400 mt-3">⚠️ AI support is not professional therapy.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<SolacePlatform />);
+  </script>
+</body>
+</html>
